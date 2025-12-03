@@ -18,31 +18,48 @@ import os
 import re
 from pathlib import Path
 
-# Import AI analysis module with error handling
-try:
+# Lazy import function for FullStockAnalyzer to handle deployment issues
+def get_full_stock_analyzer():
+    """Lazy import of FullStockAnalyzer with multiple fallback methods"""
     import sys
+    import importlib.util
     import os
-    # Ensure current directory is in path
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    if current_dir not in sys.path:
-        sys.path.insert(0, current_dir)
     
-    from full_analysis import FullStockAnalyzer
-except ImportError as e:
-    st.error(f"❌ Error importing FullStockAnalyzer: {e}")
-    st.error("Please ensure full_analysis.py is in the same directory as main.py")
-    st.error(f"Current directory: {os.getcwd()}")
-    st.error(f"Script location: {os.path.dirname(os.path.abspath(__file__))}")
-    st.stop()
-except KeyError as e:
-    st.error(f"❌ Module import error (KeyError): {e}")
-    st.error("This may be a Python import cache issue. Try restarting the app.")
-    st.error(f"Looking for full_analysis in: {sys.path}")
-    st.stop()
-except Exception as e:
-    st.error(f"❌ Unexpected error importing FullStockAnalyzer: {e}")
-    st.error(f"Error type: {type(e).__name__}")
-    st.stop()
+    # Try Method 1: Standard import
+    try:
+        from full_analysis import FullStockAnalyzer
+        return FullStockAnalyzer
+    except (ImportError, KeyError, ModuleNotFoundError, AttributeError) as e1:
+        # Try Method 2: Direct file import using importlib
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            full_analysis_path = os.path.join(current_dir, 'full_analysis.py')
+            
+            if os.path.exists(full_analysis_path):
+                spec = importlib.util.spec_from_file_location("full_analysis_module", full_analysis_path)
+                if spec and spec.loader:
+                    full_analysis_module = importlib.util.module_from_spec(spec)
+                    sys.modules['full_analysis_module'] = full_analysis_module
+                    spec.loader.exec_module(full_analysis_module)
+                    return full_analysis_module.FullStockAnalyzer
+        except Exception as e2:
+            # Try Method 3: Add directories to path and retry
+            try:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                parent_dir = os.path.dirname(current_dir)
+                
+                for dir_path in [current_dir, parent_dir]:
+                    if dir_path not in sys.path:
+                        sys.path.insert(0, dir_path)
+                
+                from full_analysis import FullStockAnalyzer
+                return FullStockAnalyzer
+            except Exception as e3:
+                raise ImportError(
+                    f"Failed to import FullStockAnalyzer. "
+                    f"Errors: standard={e1}, importlib={e2}, path={e3}. "
+                    f"Current dir: {os.getcwd()}, Script dir: {os.path.dirname(os.path.abspath(__file__))}"
+                )
 
 # Try to import optional dependencies
 try:
@@ -779,6 +796,14 @@ if analyze_button:
                     try:
                         with st.status("Generating AI analysis...", expanded=True) as status:
                             st.write("🤖 Initializing AI analyzer...")
+                            try:
+                                FullStockAnalyzer = get_full_stock_analyzer()
+                            except Exception as import_error:
+                                st.error(f"❌ Failed to import FullStockAnalyzer: {import_error}")
+                                st.error("Please ensure full_analysis.py is in the same directory as main.py")
+                                status.update(label="❌ Import Error", state="error", expanded=False)
+                                st.stop()
+                            
                             session = get_yfinance_session()
                             analyzer = FullStockAnalyzer(api_key=google_api_key, session=session)
                             
