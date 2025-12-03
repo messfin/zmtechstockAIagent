@@ -18,8 +18,31 @@ import os
 import re
 from pathlib import Path
 
-# Import AI analysis module
-from full_analysis import FullStockAnalyzer
+# Import AI analysis module with error handling
+try:
+    import sys
+    import os
+    # Ensure current directory is in path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    
+    from full_analysis import FullStockAnalyzer
+except ImportError as e:
+    st.error(f"❌ Error importing FullStockAnalyzer: {e}")
+    st.error("Please ensure full_analysis.py is in the same directory as main.py")
+    st.error(f"Current directory: {os.getcwd()}")
+    st.error(f"Script location: {os.path.dirname(os.path.abspath(__file__))}")
+    st.stop()
+except KeyError as e:
+    st.error(f"❌ Module import error (KeyError): {e}")
+    st.error("This may be a Python import cache issue. Try restarting the app.")
+    st.error(f"Looking for full_analysis in: {sys.path}")
+    st.stop()
+except Exception as e:
+    st.error(f"❌ Unexpected error importing FullStockAnalyzer: {e}")
+    st.error(f"Error type: {type(e).__name__}")
+    st.stop()
 
 # Try to import optional dependencies
 try:
@@ -527,7 +550,7 @@ with st.sidebar:
     st.markdown("---")
     
     # Analysis button
-    analyze_button = st.button("🚀 Generate Analysis", use_container_width=True)
+    analyze_button = st.button("🚀 Generate Analysis", width='stretch')
 
 # ═══════════════════════════════════════════════════════════════
 # MAIN CONTENT AREA
@@ -739,7 +762,7 @@ if analyze_button:
                     xaxis_rangeslider_visible=False
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             
             # ═══════════════════════════════════════════════════════════
             # AI-POWERED RESEARCH MODE

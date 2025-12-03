@@ -171,7 +171,7 @@ with st.sidebar:
     st.markdown("---")
     
     # Analysis button
-    analyze_button = st.button("🚀 Generate Analysis", use_container_width=True)
+    analyze_button = st.button("🚀 Generate Analysis", width='stretch')
     
     st.markdown("---")
     
@@ -390,7 +390,7 @@ else:
                 
                 fig.update_xaxes(rangeslider_visible=False)
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Support and Resistance levels
                 st.markdown("### 🎯 Key Price Levels")

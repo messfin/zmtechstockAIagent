@@ -1071,7 +1071,7 @@ if data is not None:
     fig.update_yaxes(title_text="RSI", row=4, col=1)
 
     # Display the plot
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Statistics and Analysis
     st.subheader('Technical Indicators Summary')
