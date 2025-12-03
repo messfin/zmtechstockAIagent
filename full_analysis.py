@@ -273,93 +273,74 @@ class FullStockAnalyzer:
         
         # Create the prompt for the AI
         prompt = f"""
-You are a senior equity research analyst at a top-tier investment bank. Your task is to analyze the following stock data and provide a comprehensive research note with a clear Buy/Hold/Sell recommendation.
+You are a senior equity research analyst at a top-tier investment bank (like Goldman Sachs or Morgan Stanley). Your task is to analyze the following stock data and produce a professional "Equity Research Note".
 
 STOCK DATA:
 {data_summary}
 
 INSTRUCTIONS:
-1. Analyze all the technical and fundamental data provided
-2. Provide a clear recommendation (BUY, HOLD, or SELL) with a conviction level (High/Medium/Low)
-3. Use professional financial terminology (e.g., valuation compression, technical consolidation, risk-reward profile)
-4. Structure your response EXACTLY as follows:
+1.  **Tone:** Authoritative, professional, concise, and data-driven.
+2.  **Structure:** Follow the exact format below.
+3.  **Analysis:** Synthesize technicals, fundamentals, and AI insights.
+4.  **Output:** Use Markdown formatting for headers and emphasis.
 
-═══════════════════════════════════════════════════════════════
-                    EQUITY RESEARCH NOTE
-═══════════════════════════════════════════════════════════════
+FORMAT:
 
-TICKER: {stock_data['ticker']}
-CURRENT PRICE: ${stock_data['current_price']:.2f}
-DATE: {datetime.now().strftime('%B %d, %Y')}
+# EQUITY RESEARCH NOTE: {stock_data['ticker']}
 
--------------------------------------------------------------------
-I. RECOMMENDATION
--------------------------------------------------------------------
-[Provide clear Buy/Hold/Sell rating with conviction level]
+**Date:** {datetime.now().strftime('%B %d, %Y')}
+**Current Price:** ${stock_data['current_price']:.2f}
+**Rating:** [BUY / HOLD / SELL]
+**Conviction:** [High / Medium / Low]
 
--------------------------------------------------------------------
-II. INVESTMENT THESIS
--------------------------------------------------------------------
-[Provide 3-5 paragraphs explaining:]
-- Fundamental analysis and valuation assessment
-- Technical setup and momentum indicators
-- Key catalysts or risks
-- Risk-reward profile at current levels
+---
 
--------------------------------------------------------------------
-III. TECHNICAL ANALYSIS
--------------------------------------------------------------------
-[Analyze:]
-- RSI conditions and what they indicate
-- MACD signals and momentum
-- Moving average alignment and trend strength
-- Volume patterns and significance
-- Bollinger Bands positioning
+## 1. EXECUTIVE SUMMARY & RECOMMENDATION
+[Provide a concise 3-4 sentence summary of your core thesis and recommendation. Why this rating now?]
 
--------------------------------------------------------------------
-IV. FUNDAMENTAL ASSESSMENT
--------------------------------------------------------------------
-[Evaluate:]
-- Valuation metrics (P/E, PEG, P/B ratios)
-- Growth metrics and earnings trends
-- Financial health indicators
-- Sector positioning
+## 2. INVESTMENT THESIS
+**Bull Case:**
+*   [Key driver 1]
+*   [Key driver 2]
 
--------------------------------------------------------------------
-V. RISK FACTORS
--------------------------------------------------------------------
-[Identify 3-5 key risks to the thesis]
+**Bear Case:**
+*   [Key risk 1]
+*   [Key risk 2]
 
--------------------------------------------------------------------
-VI. PRICE TARGET & TIMELINE
--------------------------------------------------------------------
-[Provide price target and expected timeframe]
+**Conclusion:** [Synthesis of the risk/reward profile]
 
--------------------------------------------------------------------
-VII. ZMtech ANALYSIS - KEY LEVELS
--------------------------------------------------------------------
-RESISTANCE LEVELS:
-• R3 (Strong): $[value] - [brief explanation]
-• R2 (Moderate): $[value] - [brief explanation]
-• R1 (Immediate): $[value] - [brief explanation]
+## 3. TECHNICAL ANALYSIS
+**Trend Status:** [Bullish/Bearish/Neutral]
+**Momentum:** [RSI/MACD interpretation]
+**Key Observations:**
+*   [Observation 1 regarding moving averages or volume]
+*   [Observation 2 regarding chart patterns]
 
-SUPPORT LEVELS:
-• S1 (Immediate): $[value] - [brief explanation]
-• S2 (Moderate): $[value] - [brief explanation]
-• S3 (Strong): $[value] - [brief explanation]
+## 4. FUNDAMENTAL ASSESSMENT
+**Valuation:** [Comment on P/E, PEG, etc. relative to peers/history]
+**Growth:** [Comment on revenue/earnings trajectory]
+**Health:** [Comment on margins, debt, or cash flow]
 
-PIVOT POINT: $[value]
+## 5. KEY PRICE LEVELS (ZMtech Analysis)
+**Resistance:**
+*   **R3:** ${stock_data['support_resistance']['resistance_3']:.2f} (Strong)
+*   **R2:** ${stock_data['support_resistance']['resistance_2']:.2f}
+*   **R1:** ${stock_data['support_resistance']['resistance_1']:.2f}
 
-TRADING STRATEGY:
-[Provide specific entry, stop-loss, and target levels]
+**Pivot Point:** ${stock_data['support_resistance']['pivot']:.2f}
 
-═══════════════════════════════════════════════════════════════
+**Support:**
+*   **S1:** ${stock_data['support_resistance']['support_1']:.2f}
+*   **S2:** ${stock_data['support_resistance']['support_2']:.2f}
+*   **S3:** ${stock_data['support_resistance']['support_3']:.2f} (Strong)
 
-Remember to:
-- Use specific numbers from the data
-- Be authoritative and professional
-- Provide actionable insights
-- Justify your recommendation with concrete evidence
+## 6. TRADING STRATEGY
+*   **Entry Zone:** [Specific price range]
+*   **Stop Loss:** [Specific price]
+*   **Target Price:** [Specific price] ([Timeframe])
+
+---
+*Disclaimer: This report is generated by AI for informational purposes only and does not constitute financial advice.*
 """
         
         try:

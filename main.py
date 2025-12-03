@@ -18,7 +18,23 @@ import warnings
 import base64
 import os
 import re
+import io
 from pathlib import Path
+
+# Import for report generation
+try:
+    from docx import Document
+    from docx.shared import Pt, RGBColor, Inches
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    WORD_AVAILABLE = True
+except ImportError:
+    WORD_AVAILABLE = False
+
+try:
+    from fpdf import FPDF
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
 
 # Lazy import function for FullStockAnalyzer to handle deployment issues
 # This function is called only when needed, avoiding import-time errors
@@ -309,34 +325,143 @@ def add_bg_from_local():
 
 def format_report_text(report: str) -> str:
     """Format report text to highlight section headers"""
-    # Format section headers with bold styling
     formatted = report
     
-    # Format VI. PRICE TARGET & TIMELINE
+    # Remove excessive newlines (more than 2)
+    formatted = re.sub(r'\n{3,}', '\n\n', formatted)
+    
+    # Format numbered headers (e.g., ## 1. EXECUTIVE SUMMARY)
+    # Use div with margins for better spacing
     formatted = re.sub(
-        r'(VI\.\s*PRICE TARGET\s*&\s*TIMELINE)',
-        r'<strong style="color: #0066cc; font-size: 18px; font-weight: 700;">\1</strong>',
+        r'(##\s*\d+\.\s*[A-Z\s&]+)',
+        r'<div style="color: #0066cc; font-size: 18px; font-weight: 700; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px solid rgba(0, 102, 204, 0.3); padding-bottom: 5px;">\1</div>',
         formatted,
         flags=re.IGNORECASE
     )
     
-    # Format VII. ZMtech ANALYSIS - KEY LEVELS
+    # Format main title
     formatted = re.sub(
-        r'(VII\.\s*ZMtech\s*ANALYSIS\s*-\s*KEY\s*LEVELS)',
-        r'<strong style="color: #0066cc; font-size: 18px; font-weight: 700;">\1</strong>',
+        r'(#\s*EQUITY RESEARCH NOTE:.*)',
+        r'<h1 style="color: #ffffff; font-size: 24px; border-bottom: 2px solid #0066cc; padding-bottom: 10px; margin-bottom: 20px;">\1</h1>',
         formatted,
         flags=re.IGNORECASE
     )
     
-    # Format other section headers (I. through V.)
+    # Bold keys (e.g., **Rating:**)
     formatted = re.sub(
-        r'^([IVX]+\.\s+[A-Z][A-Z\s&]+)$',
-        r'<strong style="color: #0066cc; font-size: 18px; font-weight: 700;">\1</strong>',
-        formatted,
-        flags=re.MULTILINE | re.IGNORECASE
+        r'(\*\*[^*]+\*\*:)',
+        r'<span style="color: #e0e0e0; font-weight: 700;">\1</span>',
+        formatted
     )
     
     return formatted
+
+def create_word_report(report_text, ticker):
+    """Generate a formatted Word document from the report text"""
+    doc = Document()
+    
+    # Title
+    title = doc.add_heading(f'Equity Research Report: {ticker}', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Date
+    date_para = doc.add_paragraph(f'Generated on: {datetime.now().strftime("%B %d, %Y")}')
+    date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    doc.add_paragraph('-------------------------------------------------------------------')
+    
+    # Process text line by line for basic formatting
+    lines = report_text.split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Check for headers
+        if line.startswith('# '):
+            # Main Title
+            p = doc.add_heading(line.replace('# ', ''), level=0)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        elif line.startswith('## '):
+            # Section Headers
+            p = doc.add_heading(line.replace('## ', ''), level=1)
+            run = p.runs[0]
+            run.font.color.rgb = RGBColor(0, 102, 204)  # CNBC Blue
+        elif line.startswith('**') and line.endswith('**'):
+            # Bold lines
+            p = doc.add_paragraph()
+            run = p.add_run(line.replace('**', ''))
+            run.bold = True
+        elif line.startswith('TICKER:') or line.startswith('CURRENT PRICE:'):
+            p = doc.add_paragraph()
+            run = p.add_run(line)
+            run.bold = True
+        elif 'BUY' in line or 'STRONG BUY' in line:
+            p = doc.add_paragraph()
+            run = p.add_run(line)
+            run.bold = True
+            run.font.color.rgb = RGBColor(0, 153, 51)  # Green
+        elif 'SELL' in line or 'STRONG SELL' in line:
+            p = doc.add_paragraph()
+            run = p.add_run(line)
+            run.bold = True
+            run.font.color.rgb = RGBColor(204, 0, 0)  # Red
+        else:
+            # Handle inline bolding like **Text**
+            if '**' in line:
+                parts = line.split('**')
+                p = doc.add_paragraph()
+                for i, part in enumerate(parts):
+                    run = p.add_run(part)
+                    if i % 2 == 1: # Odd parts are between ** **
+                        run.bold = True
+            else:
+                doc.add_paragraph(line)
+            
+    # Footer
+    doc.add_paragraph('-------------------------------------------------------------------')
+    footer = doc.add_paragraph('Generated by ZMtech Advanced Stock Analysis Platform')
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Save to bytes
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+class PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 15)
+        self.cell(0, 10, 'ZMtech Equity Research', 0, 1, 'C')
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+def create_pdf_report(report_text, ticker):
+    """Generate a formatted PDF document from the report text"""
+    pdf = PDF()
+    pdf.add_page()
+    
+    # Title
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, f"Equity Research Report: {ticker}", 0, 1, "C")
+    pdf.set_font("Arial", "I", 10)
+    pdf.cell(0, 10, f"Generated on: {datetime.now().strftime('%B %d, %Y')}", 0, 1, "C")
+    pdf.ln(5)
+    
+    # Content
+    pdf.set_font("Courier", size=10) # Use monospaced font for alignment
+    
+    # Clean up text for PDF (remove some special chars that might cause issues)
+    clean_text = report_text.encode('latin-1', 'replace').decode('latin-1')
+    
+    pdf.multi_cell(0, 5, clean_text)
+    
+    # Output to bytes
+    return pdf.output(dest='S').encode('latin-1')
 
 # ═══════════════════════════════════════════════════════════════
 # TECHNICAL ANALYSIS FUNCTIONS
@@ -489,7 +614,7 @@ st.markdown("""
 
 # Header - CNBC style
 st.markdown("""
-    <h1 style='text-align: center; font-size: 3em; margin-bottom: 0; color: #000000; font-weight: 700; font-family: "Helvetica Neue", Arial, sans-serif;'>
+    <h1 style='text-align: center; font-size: 3em; margin-bottom: 0; color: #ffffff; font-weight: 700; font-family: "Helvetica Neue", Arial, sans-serif;'>
         📊 ZMtech Stock Analysis Platform
     </h1>
     <p style='text-align: center; color: #b0b0b0; font-size: 1.2em; margin-top: 0; font-weight: 400;'>
@@ -860,18 +985,56 @@ if analyze_button:
                         formatted_report = format_report_text(report)
                         st.markdown(f"""
                         <div class="report-container">
-                            <div style="color: #ffffff; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">
+                            <div style="color: #e0e0e0; font-size: 15px; line-height: 1.6; white-space: pre-wrap; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
 {formatted_report}
                             </div>
+                        </div>
                         """, unsafe_allow_html=True)
                         
-                        # Download button
-                        st.download_button(
-                            label="📥 Download Full Report",
-                            data=report,
-                            file_name=f"{ticker}_AI_Analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                            mime="text/plain"
-                        )
+                        # Download buttons
+                        st.markdown("### 📥 Download Report")
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            st.download_button(
+                                label="📄 Download as Text",
+                                data=report,
+                                file_name=f"{ticker}_analysis_{datetime.now().strftime('%Y%m%d')}.txt",
+                                mime="text/plain",
+                                use_container_width=True
+                            )
+                            
+                        with col2:
+                            if WORD_AVAILABLE:
+                                try:
+                                    word_data = create_word_report(report, ticker)
+                                    st.download_button(
+                                        label="📝 Download as Word",
+                                        data=word_data,
+                                        file_name=f"{ticker}_analysis_{datetime.now().strftime('%Y%m%d')}.docx",
+                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                        use_container_width=True
+                                    )
+                                except Exception as e:
+                                    st.error(f"Word generation failed: {e}")
+                            else:
+                                st.warning("Word export unavailable")
+                                
+                        with col3:
+                            if PDF_AVAILABLE:
+                                try:
+                                    pdf_data = create_pdf_report(report, ticker)
+                                    st.download_button(
+                                        label="📕 Download as PDF",
+                                        data=pdf_data,
+                                        file_name=f"{ticker}_analysis_{datetime.now().strftime('%Y%m%d')}.pdf",
+                                        mime="application/pdf",
+                                        use_container_width=True
+                                    )
+                                except Exception as e:
+                                    st.error(f"PDF generation failed: {e}")
+                            else:
+                                st.warning("PDF export unavailable")
                         
                         # Support/Resistance levels
                         st.markdown("### 🎯 Key Price Levels")
