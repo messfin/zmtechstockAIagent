@@ -756,7 +756,8 @@ if analyze_button:
                     try:
                         with st.status("Generating AI analysis...", expanded=True) as status:
                             st.write("🤖 Initializing AI analyzer...")
-                            analyzer = FullStockAnalyzer(api_key=google_api_key)
+                            session = get_yfinance_session()
+                            analyzer = FullStockAnalyzer(api_key=google_api_key, session=session)
                             
                             st.write("📊 Fetching comprehensive stock data...")
                             # Calculate period for AI analysis

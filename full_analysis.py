@@ -19,17 +19,19 @@ class FullStockAnalyzer:
     with Google Generative AI for professional equity research reports.
     """
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, session=None):
         """
         Initialize the analyzer with Google AI API key.
         
         Args:
             api_key: Google AI API key (if None, reads from environment variable GOOGLE_API_KEY)
+            session: Optional requests session (e.g., curl_cffi session) to use for yfinance
         """
         self.api_key = api_key or os.getenv('GOOGLE_API_KEY')
         if not self.api_key:
             raise ValueError("Google API key is required. Set GOOGLE_API_KEY environment variable or pass it directly.")
         
+        self.session = session
         genai.configure(api_key=self.api_key)
         # Updated to use available Gemini 2.0 Flash model
         self.model = genai.GenerativeModel('gemini-2.0-flash')
@@ -46,7 +48,11 @@ class FullStockAnalyzer:
             Dictionary containing stock data and metrics
         """
         try:
-            stock = yf.Ticker(ticker)
+            # Use session if available (e.g., curl_cffi session)
+            if self.session:
+                stock = yf.Ticker(ticker, session=self.session)
+            else:
+                stock = yf.Ticker(ticker)
             
             # Get historical price data
             hist = stock.history(period=period)

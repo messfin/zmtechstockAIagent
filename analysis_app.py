@@ -12,6 +12,13 @@ import os
 import re
 from full_analysis import FullStockAnalyzer
 
+# Try to import curl_cffi for better rate limit handling
+try:
+    from curl_cffi import requests
+    CURL_CFFI_AVAILABLE = True
+except ImportError:
+    CURL_CFFI_AVAILABLE = False
+
 # Page configuration
 st.set_page_config(
     page_title="ZMtech AI Stock Analysis",
@@ -200,8 +207,15 @@ else:
     if analyze_button:
         try:
             with st.spinner(f"🔍 Analyzing {ticker}... This may take 30-60 seconds..."):
-                # Initialize analyzer
-                analyzer = FullStockAnalyzer(api_key=api_key)
+                # Initialize analyzer with curl_cffi session if available
+                session = None
+                if CURL_CFFI_AVAILABLE:
+                    try:
+                        session = requests.Session(impersonate="chrome")
+                    except Exception:
+                        session = None
+                
+                analyzer = FullStockAnalyzer(api_key=api_key, session=session)
                 
                 # Fetch stock data
                 with st.status("Fetching market data...", expanded=True) as status:
