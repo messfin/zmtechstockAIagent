@@ -171,7 +171,7 @@ with st.sidebar:
     st.markdown("---")
     
     # Analysis button
-    analyze_button = st.button("🚀 Generate Analysis", width='stretch')
+    analyze_button = st.button("🚀 Generate Analysis", use_container_width=True)
     
     st.markdown("---")
     

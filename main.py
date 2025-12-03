@@ -2,6 +2,8 @@
 ZMtech Advanced Stock Analysis Platform
 Combines technical analysis with AI-powered equity research
 Supports both Streamlit secrets and .env file for API key management
+
+Version: 2.0 (with lazy import for Streamlit Cloud compatibility)
 """
 
 import streamlit as st
@@ -19,47 +21,71 @@ import re
 from pathlib import Path
 
 # Lazy import function for FullStockAnalyzer to handle deployment issues
+# This function is called only when needed, avoiding import-time errors
 def get_full_stock_analyzer():
-    """Lazy import of FullStockAnalyzer with multiple fallback methods"""
+    """Lazy import of FullStockAnalyzer with multiple fallback methods for Streamlit Cloud compatibility"""
     import sys
     import importlib.util
     import os
     
-    # Try Method 1: Standard import
+    # Method 1: Standard import (works locally)
     try:
         from full_analysis import FullStockAnalyzer
         return FullStockAnalyzer
     except (ImportError, KeyError, ModuleNotFoundError, AttributeError) as e1:
-        # Try Method 2: Direct file import using importlib
-        try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            full_analysis_path = os.path.join(current_dir, 'full_analysis.py')
-            
+        pass  # Continue to next method
+    
+    # Method 2: Direct file import using importlib (for Streamlit Cloud)
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Try multiple possible locations
+        possible_paths = [
+            os.path.join(current_dir, 'full_analysis.py'),
+            os.path.join(os.path.dirname(current_dir), 'full_analysis.py'),
+            os.path.join(os.getcwd(), 'full_analysis.py'),
+        ]
+        
+        for full_analysis_path in possible_paths:
             if os.path.exists(full_analysis_path):
-                spec = importlib.util.spec_from_file_location("full_analysis_module", full_analysis_path)
-                if spec and spec.loader:
-                    full_analysis_module = importlib.util.module_from_spec(spec)
-                    sys.modules['full_analysis_module'] = full_analysis_module
-                    spec.loader.exec_module(full_analysis_module)
-                    return full_analysis_module.FullStockAnalyzer
-        except Exception as e2:
-            # Try Method 3: Add directories to path and retry
-            try:
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                parent_dir = os.path.dirname(current_dir)
-                
-                for dir_path in [current_dir, parent_dir]:
-                    if dir_path not in sys.path:
-                        sys.path.insert(0, dir_path)
-                
-                from full_analysis import FullStockAnalyzer
-                return FullStockAnalyzer
-            except Exception as e3:
-                raise ImportError(
-                    f"Failed to import FullStockAnalyzer. "
-                    f"Errors: standard={e1}, importlib={e2}, path={e3}. "
-                    f"Current dir: {os.getcwd()}, Script dir: {os.path.dirname(os.path.abspath(__file__))}"
+                spec = importlib.util.spec_from_file_location(
+                    "full_analysis_module", 
+                    full_analysis_path
                 )
+                if spec and spec.loader:
+                    # Use a unique module name to avoid conflicts
+                    module_name = f"full_analysis_{id(spec)}"
+                    full_analysis_module = importlib.util.module_from_spec(spec)
+                    sys.modules[module_name] = full_analysis_module
+                    spec.loader.exec_module(full_analysis_module)
+                    if hasattr(full_analysis_module, 'FullStockAnalyzer'):
+                        return full_analysis_module.FullStockAnalyzer
+    except Exception as e2:
+        pass  # Continue to next method
+    
+    # Method 3: Add directories to path and retry
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(current_dir)
+        cwd = os.getcwd()
+        
+        for dir_path in [current_dir, parent_dir, cwd]:
+            if dir_path and dir_path not in sys.path:
+                sys.path.insert(0, dir_path)
+        
+        from full_analysis import FullStockAnalyzer
+        return FullStockAnalyzer
+    except Exception as e3:
+        pass
+    
+    # If all methods fail, raise a comprehensive error
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    raise ImportError(
+        f"Failed to import FullStockAnalyzer from full_analysis.py. "
+        f"Tried: standard import, importlib, and path manipulation. "
+        f"Current dir: {os.getcwd()}, "
+        f"Script dir: {current_dir}, "
+        f"Python path: {sys.path[:3]}"
+    )
 
 # Try to import optional dependencies
 try:
@@ -567,7 +593,7 @@ with st.sidebar:
     st.markdown("---")
     
     # Analysis button
-    analyze_button = st.button("🚀 Generate Analysis", width='stretch')
+    analyze_button = st.button("🚀 Generate Analysis", use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════
 # MAIN CONTENT AREA
