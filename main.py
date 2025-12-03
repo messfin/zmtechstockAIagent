@@ -4,7 +4,7 @@ Combines technical analysis with AI-powered equity research
 Supports both Streamlit secrets and .env file for API key management
 
 Version: 2.0 (with lazy import for Streamlit Cloud compatibility)
-""""
+"""
 
 import streamlit as st
 import pandas as pd
