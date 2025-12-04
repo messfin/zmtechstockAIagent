@@ -614,7 +614,7 @@ st.markdown("""
 
 # Header - CNBC style
 st.markdown("""
-    <h1 style='text-align: center; font-size: 3em; margin-bottom: 0; color: #ffffff; font-weight: 700; font-family: "Helvetica Neue", Arial, sans-serif;'>
+    <h1 style='text-align: center; font-size: 3em; margin-bottom: 0; color: #00bcd4; font-weight: 700; font-family: "Helvetica Neue", Arial, sans-serif;'>
         📊 ZMtech Stock Analysis Platform
     </h1>
     <p style='text-align: center; color: #b0b0b0; font-size: 1.2em; margin-top: 0; font-weight: 400;'>
