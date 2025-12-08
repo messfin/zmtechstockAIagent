@@ -32,14 +32,14 @@ try:
     models = list(genai.list_models())
     
     found_generate = False
-    print("\n--- Models supporting 'generateContent' ---")
+    print("\n--- Models supporting 'generateContent' (Flash versions) ---")
     for m in models:
-        if 'generateContent' in m.supported_generation_methods:
+        if 'generateContent' in m.supported_generation_methods and 'flash' in m.name.lower():
             print(f"- {m.name}")
             found_generate = True
             
     if not found_generate:
-        print("No models found that support generateContent!")
+        print("No 'flash' models found that support generateContent!")
         
 except Exception as e:
     print(f"\nError listing models: {e}")

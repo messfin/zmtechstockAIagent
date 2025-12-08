@@ -46,6 +46,9 @@ def get_full_stock_analyzer():
     
     # Method 1: Standard import (works locally)
     try:
+        import full_analysis
+        import importlib
+        importlib.reload(full_analysis)  # Force reload to pick up changes
         from full_analysis import FullStockAnalyzer
         return FullStockAnalyzer
     except (ImportError, KeyError, ModuleNotFoundError, AttributeError) as e1:
@@ -719,6 +722,12 @@ with st.sidebar:
     
     # Analysis button
     analyze_button = st.button("🚀 Generate Analysis", use_container_width=True)
+    
+    if st.button("🗑️ Clear AI Cache", use_container_width=True):
+        if 'ai_cache' in st.session_state:
+            st.session_state.ai_cache = {}
+            st.success("Cache cleared!")
+            st.rerun()
 
 # ═══════════════════════════════════════════════════════════════
 # MAIN CONTENT AREA
@@ -975,9 +984,21 @@ if analyze_button:
                             stock_data = analyzer.fetch_stock_data(ticker, period)
                             st.write("✅ Data retrieved")
                             
-                            st.write("🧠 Generating AI-powered analysis...")
-                            report = analyzer.generate_analysis_report(stock_data)
-                            st.write("✅ Analysis complete")
+                            # Check session state cache to save API quota
+                            cache_key = f"report_{ticker}_{datetime.now().strftime('%Y-%m-%d')}"
+                            
+                            if 'ai_cache' not in st.session_state:
+                                st.session_state.ai_cache = {}
+                                
+                            if cache_key in st.session_state.ai_cache:
+                                st.write("🧠 Retrieving analysis from cache...")
+                                report = st.session_state.ai_cache[cache_key]
+                                st.write("✅ Analysis retrieved")
+                            else:
+                                st.write("🧠 Generating AI-powered analysis...")
+                                report = analyzer.generate_analysis_report(stock_data)
+                                st.session_state.ai_cache[cache_key] = report
+                                st.write("✅ Analysis complete")
                             
                             status.update(label="✅ AI Analysis Complete!", state="complete", expanded=False)
                         

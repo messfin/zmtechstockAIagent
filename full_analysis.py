@@ -33,8 +33,9 @@ class FullStockAnalyzer:
         
         self.session = session
         genai.configure(api_key=self.api_key)
-        # Updated to use available Gemini 2.0 Flash model
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        # Updated to use 'gemini-flash-latest' which is available in the model list
+        self.model = genai.GenerativeModel('gemini-flash-latest')
+        print(f"Initialized AI with model: gemini-flash-latest")
         
     def fetch_stock_data(self, ticker: str, period: str = "1y") -> Dict[str, Any]:
         """
@@ -139,11 +140,23 @@ class FullStockAnalyzer:
     
     def _extract_fundamentals(self, info: dict) -> Dict[str, Any]:
         """Extract key fundamental metrics."""
+        # Calculate Forward PEG if possible
+        forward_peg = 'N/A'
+        try:
+            fwd_pe = info.get('forwardPE')
+            growth = info.get('earningsQuarterlyGrowth')
+            if fwd_pe and growth and growth != 0:
+                # Growth is usually a decimal (e.g., 0.15 for 15%), PEG uses percentage (15)
+                forward_peg = fwd_pe / (growth * 100)
+        except:
+            pass
+
         return {
             'market_cap': info.get('marketCap', 'N/A'),
             'pe_ratio': info.get('trailingPE', 'N/A'),
             'forward_pe': info.get('forwardPE', 'N/A'),
             'peg_ratio': info.get('pegRatio', 'N/A'),
+            'forward_peg': forward_peg,
             'price_to_book': info.get('priceToBook', 'N/A'),
             'dividend_yield': info.get('dividendYield', 'N/A'),
             'beta': info.get('beta', 'N/A'),
@@ -323,6 +336,7 @@ FORMAT THE REPORT EXACTLY AS FOLLOWS:
 *   **Bollinger Bands:** [Position relative to bands and volatility implications]
 *   **Stochastic:** [Overbought/oversold conditions and divergences]
 *   **Volume:** [Analysis of volume trends and confirmation]
+*   **Forward PEG & Valuation Confluence:** [Analyze the Forward PEG ratio ({self._format_value(stock_data['fundamentals']['forward_peg'])}) in the context of technical momentum. Does the valuation support the technical trend?]
 
 ---
 
@@ -383,13 +397,27 @@ INSTRUCTIONS:
 - Maintain objectivity and balance
 """
         
-        try:
-            # Generate the report
-            response = self.model.generate_content(prompt)
-            return response.text
-            
-        except Exception as e:
-            raise Exception(f"Error generating AI analysis: {str(e)}")
+        retries = 3
+        base_delay = 10  # Start with 10 seconds delay
+        
+        for attempt in range(retries):
+            try:
+                # Generate the report
+                response = self.model.generate_content(prompt)
+                return response.text
+                
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "Quota exceeded" in error_str:
+                    if attempt < retries - 1:
+                        # Exponential backoff: 10s, 20s, 40s
+                        sleep_time = base_delay * (2 ** attempt)
+                        print(f"Quota exceeded. Retrying in {sleep_time} seconds... (Attempt {attempt + 1}/{retries})")
+                        import time
+                        time.sleep(sleep_time)
+                        continue
+                # If not a quota error or retries exhausted, raise the exception
+                raise Exception(f"Error generating AI analysis: {str(e)}")
     
     def _prepare_data_summary(self, stock_data: Dict[str, Any]) -> str:
         """Prepare a formatted summary of stock data for the AI."""
@@ -441,6 +469,7 @@ FUNDAMENTAL METRICS:
 - P/E Ratio: {self._format_value(stock_data['fundamentals']['pe_ratio'])}
 - Forward P/E: {self._format_value(stock_data['fundamentals']['forward_pe'])}
 - PEG Ratio: {self._format_value(stock_data['fundamentals']['peg_ratio'])}
+- Forward PEG: {self._format_value(stock_data['fundamentals']['forward_peg'])}
 - Price/Book: {self._format_value(stock_data['fundamentals']['price_to_book'])}
 - Dividend Yield: {self._format_value(stock_data['fundamentals']['dividend_yield'], is_percentage=True)}
 - Beta: {self._format_value(stock_data['fundamentals']['beta'])}
