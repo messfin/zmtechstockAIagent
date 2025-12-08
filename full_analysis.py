@@ -37,6 +37,36 @@ class FullStockAnalyzer:
         self.model = genai.GenerativeModel('gemini-flash-latest')
         print(f"Initialized AI with model: gemini-flash-latest")
         
+    def _generate_signals(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Generate buy and sell signals based on technical indicators."""
+        data = df.copy()
+        
+        # MACD Crossover + RSI Filter
+        data['Buy_Signal'] = ((data['MACD'] > data['Signal_Line']) & 
+                              (data['MACD'].shift(1) <= data['Signal_Line'].shift(1)) & 
+                              (data['RSI'] < 70)).astype(int)
+        
+        data['Sell_Signal'] = ((data['MACD'] < data['Signal_Line']) & 
+                               (data['MACD'].shift(1) >= data['Signal_Line'].shift(1)) & 
+                               (data['RSI'] > 30)).astype(int)
+        
+        # Check for recent signals (last 5 days)
+        recent = data.tail(5)
+        last_buy = recent[recent['Buy_Signal'] == 1].index.max()
+        last_sell = recent[recent['Sell_Signal'] == 1].index.max()
+        
+        signal_status = "Neutral"
+        if pd.notna(last_buy) and (pd.isna(last_sell) or last_buy > last_sell):
+            signal_status = "BUY"
+        elif pd.notna(last_sell) and (pd.isna(last_buy) or last_sell > last_buy):
+            signal_status = "SELL"
+            
+        return {
+            'status': signal_status,
+            'last_buy_date': last_buy.strftime('%Y-%m-%d') if pd.notna(last_buy) else 'None',
+            'last_sell_date': last_sell.strftime('%Y-%m-%d') if pd.notna(last_sell) else 'None'
+        }
+
     def fetch_stock_data(self, ticker: str, period: str = "1y") -> Dict[str, Any]:
         """
         Fetch comprehensive stock data from Yahoo Finance.
@@ -64,6 +94,9 @@ class FullStockAnalyzer:
             # Calculate technical indicators
             data = self._calculate_indicators(hist)
             
+            # Generate signals
+            signals = self._generate_signals(data)
+            
             # Get fundamental data
             fundamentals = self._extract_fundamentals(info)
             
@@ -84,7 +117,8 @@ class FullStockAnalyzer:
                 'support_resistance': support_resistance,
                 'technical_indicators': self._get_latest_indicators(data),
                 'volume_analysis': self._analyze_volume(data),
-                'trend_analysis': self._analyze_trend(data)
+                'trend_analysis': self._analyze_trend(data),
+                'signals': signals
             }
             
         except Exception as e:
@@ -332,6 +366,7 @@ FORMAT THE REPORT EXACTLY AS FOLLOWS:
 **Momentum:** RSI at [value] ([Overbought/Oversold/Neutral]), MACD [bullish/bearish crossover status]
 
 **Key Technical Observations:**
+*   **Algorithmic Buy/Sell Signals:** [Analyze the 'ALGORITHMIC SIGNALS' section. Is there a recent Buy or Sell signal? Does it confirm the trend?]
 *   **EMAs:** [Comment on 20/50/200 EMA alignment and what it signals]
 *   **Bollinger Bands:** [Position relative to bands and volatility implications]
 *   **Stochastic:** [Overbought/oversold conditions and divergences]
@@ -426,6 +461,11 @@ INSTRUCTIONS:
 TICKER: {stock_data['ticker']}
 CURRENT PRICE: ${stock_data['current_price']:.2f}
 PRICE CHANGE (1D): {stock_data['price_change']:.2f}%
+
+ALGORITHMIC SIGNALS:
+- Current Signal Status: {stock_data['signals']['status']}
+- Last Buy Signal: {stock_data['signals']['last_buy_date']}
+- Last Sell Signal: {stock_data['signals']['last_sell_date']}
 
 TECHNICAL INDICATORS:
 - RSI (14): {stock_data['technical_indicators']['rsi']:.2f}
