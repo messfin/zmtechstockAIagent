@@ -363,6 +363,12 @@ def create_word_report(report_text, ticker):
     """Generate a formatted Word document from the report text"""
     doc = Document()
     
+    # Set default style to Calibri (standard professional font)
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
+    
     # Title
     title = doc.add_heading(f'Equity Research Report: {ticker}', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -382,16 +388,31 @@ def create_word_report(report_text, ticker):
             
         # Check for headers
         if line.startswith('# '):
-            # Main Title
-            p = doc.add_heading(line.replace('# ', ''), level=0)
+            # Main Title (already handled mostly by the top title, but if AI outputs it...)
+            p = doc.add_heading(line.replace('# ', ''), level=1)
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         elif line.startswith('## '):
             # Section Headers
-            p = doc.add_heading(line.replace('## ', ''), level=1)
+            p = doc.add_heading(line.replace('## ', ''), level=2)
             run = p.runs[0]
             run.font.color.rgb = RGBColor(0, 102, 204)  # CNBC Blue
+        elif line.startswith('* ') or line.startswith('- '):
+            # Bullet points
+            clean_line = line[2:].strip()
+            p = doc.add_paragraph(style='List Bullet')
+            
+            # Handle inline bolding within bullets
+            if '**' in clean_line:
+                parts = clean_line.split('**')
+                for i, part in enumerate(parts):
+                    run = p.add_run(part)
+                    if i % 2 == 1: # Odd parts are between ** **
+                        run.bold = True
+            else:
+                p.add_run(clean_line)
+                
         elif line.startswith('**') and line.endswith('**'):
-            # Bold lines
+            # Bold lines (like "Bull Case:")
             p = doc.add_paragraph()
             run = p.add_run(line.replace('**', ''))
             run.bold = True
@@ -401,14 +422,21 @@ def create_word_report(report_text, ticker):
             run.bold = True
         elif 'BUY' in line or 'STRONG BUY' in line:
             p = doc.add_paragraph()
-            run = p.add_run(line)
-            run.bold = True
-            run.font.color.rgb = RGBColor(0, 153, 51)  # Green
+            # Only color if it's a short line (likely a rating)
+            if len(line) < 50:
+                run = p.add_run(line)
+                run.bold = True
+                run.font.color.rgb = RGBColor(0, 153, 51)  # Green
+            else:
+                p.add_run(line)
         elif 'SELL' in line or 'STRONG SELL' in line:
-            p = doc.add_paragraph()
-            run = p.add_run(line)
-            run.bold = True
-            run.font.color.rgb = RGBColor(204, 0, 0)  # Red
+            # Only color if it's a short line (likely a rating)
+            if len(line) < 50:
+                run = p.add_run(line)
+                run.bold = True
+                run.font.color.rgb = RGBColor(204, 0, 0)  # Red
+            else:
+                p.add_run(line)
         else:
             # Handle inline bolding like **Text**
             if '**' in line:
@@ -456,12 +484,75 @@ def create_pdf_report(report_text, ticker):
     pdf.ln(5)
     
     # Content
-    pdf.set_font("Courier", size=10) # Use monospaced font for alignment
+    pdf.set_font("Arial", size=10)
     
-    # Clean up text for PDF (remove some special chars that might cause issues)
-    clean_text = report_text.encode('latin-1', 'replace').decode('latin-1')
-    
-    pdf.multi_cell(0, 5, clean_text)
+    lines = report_text.split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            pdf.ln(2)
+            continue
+            
+        # Handle Headers
+        if line.startswith('# '):
+            # Main Title
+            pdf.ln(5)
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(0, 10, line.replace('# ', '').encode('latin-1', 'replace').decode('latin-1'), 0, 1, 'C')
+            pdf.set_font("Arial", size=10)
+        elif line.startswith('## '):
+            # Section Headers
+            pdf.ln(5)
+            pdf.set_font("Arial", "B", 12)
+            pdf.set_text_color(0, 102, 204) # CNBC Blue
+            pdf.cell(0, 8, line.replace('## ', '').encode('latin-1', 'replace').decode('latin-1'), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0) # Reset color
+            pdf.set_font("Arial", size=10)
+            
+        # Handle Bullets
+        elif line.startswith('* ') or line.startswith('- '):
+            clean_line = line[2:].strip()
+            pdf.set_x(15) # Indent
+            pdf.write(5, "- ") 
+            
+            # Handle inline bolding
+            if '**' in clean_line:
+                parts = clean_line.split('**')
+                for i, part in enumerate(parts):
+                    text = part.encode('latin-1', 'replace').decode('latin-1')
+                    if i % 2 == 1: # Bold
+                        pdf.set_font("Arial", "B", 10)
+                        pdf.write(5, text)
+                        pdf.set_font("Arial", size=10)
+                    else:
+                        pdf.write(5, text)
+            else:
+                pdf.write(5, clean_line.encode('latin-1', 'replace').decode('latin-1'))
+            pdf.ln(5)
+            
+        # Handle Bold Lines
+        elif line.startswith('**') and line.endswith('**'):
+            pdf.set_font("Arial", "B", 10)
+            text = line.replace('**', '').encode('latin-1', 'replace').decode('latin-1')
+            pdf.multi_cell(0, 5, text)
+            pdf.set_font("Arial", size=10)
+            
+        # Handle Standard Lines
+        else:
+            # Handle inline bolding
+            if '**' in line:
+                parts = line.split('**')
+                for i, part in enumerate(parts):
+                    text = part.encode('latin-1', 'replace').decode('latin-1')
+                    if i % 2 == 1: # Bold
+                        pdf.set_font("Arial", "B", 10)
+                        pdf.write(5, text)
+                        pdf.set_font("Arial", size=10)
+                    else:
+                        pdf.write(5, text)
+                pdf.ln(5)
+            else:
+                pdf.multi_cell(0, 5, line.encode('latin-1', 'replace').decode('latin-1'))
     
     # Output to bytes
     return pdf.output(dest='S').encode('latin-1')
@@ -717,6 +808,12 @@ with st.sidebar:
         show_forecast = st.checkbox("Show SARIMA Forecast")
         if show_forecast:
             forecast_periods = st.slider("Forecast Periods", 5, 60, 30)
+            
+        st.markdown("---")
+        st.markdown("### 🛠️ Indicators")
+        show_bb = st.checkbox("Show Bollinger Bands", value=True)
+        show_vol_ma = st.checkbox("Show Volume MA", value=True)
+        show_sr = st.checkbox("Show Support/Resistance", value=True)
     
     st.markdown("---")
     
@@ -770,6 +867,15 @@ if analyze_button:
             data['MACD'] = macd
             data['Signal'] = signal
             data['RSI'] = calculate_rsi(data)
+            
+            # Bollinger Bands
+            data['BB_Middle'] = data['Close'].rolling(window=20).mean()
+            bb_std = data['Close'].rolling(window=20).std()
+            data['BB_Upper'] = data['BB_Middle'] + (bb_std * 2)
+            data['BB_Lower'] = data['BB_Middle'] - (bb_std * 2)
+            
+            # Volume MA
+            data['Vol_MA'] = data['Volume'].rolling(window=20).mean()
             
             # Heikin-Ashi
             ha_df = calculate_heikin_ashi(data)
@@ -858,6 +964,39 @@ if analyze_button:
                     go.Scatter(x=data.index, y=data['VWAP'], name='VWAP', line=dict(color='purple', width=1.5)),
                     row=1, col=1
                 )
+
+                # Bollinger Bands
+                if show_bb:
+                    fig.add_trace(
+                        go.Scatter(x=data.index, y=data['BB_Upper'], line=dict(color='rgba(255, 255, 255, 0.3)', width=1), name='BB Upper'),
+                        row=1, col=1
+                    )
+                    fig.add_trace(
+                        go.Scatter(x=data.index, y=data['BB_Lower'], line=dict(color='rgba(255, 255, 255, 0.3)', width=1), 
+                                  fill='tonexty', fillcolor='rgba(255, 255, 255, 0.05)', name='BB Lower'),
+                        row=1, col=1
+                    )
+
+                # Support/Resistance
+                if show_sr:
+                    # Calculate levels (using last 60 days for context)
+                    recent = data.tail(60)
+                    high_60 = recent['High'].max()
+                    low_60 = recent['Low'].min()
+                    close_last = data['Close'].iloc[-1]
+                    
+                    pivot = (high_60 + low_60 + close_last) / 3
+                    r1 = 2 * pivot - low_60
+                    s1 = 2 * pivot - high_60
+                    r2 = pivot + (high_60 - low_60)
+                    s2 = pivot - (high_60 - low_60)
+                    
+                    # Add lines
+                    fig.add_hline(y=pivot, line_dash="dash", line_color="gray", annotation_text="Pivot", row=1, col=1)
+                    fig.add_hline(y=r1, line_dash="dot", line_color="red", annotation_text="R1", row=1, col=1)
+                    fig.add_hline(y=s1, line_dash="dot", line_color="green", annotation_text="S1", row=1, col=1)
+                    fig.add_hline(y=r2, line_dash="dot", line_color="red", annotation_text="R2", row=1, col=1)
+                    fig.add_hline(y=s2, line_dash="dot", line_color="green", annotation_text="S2", row=1, col=1)
                 
                 # SARIMA Forecast
                 if show_forecast:
@@ -896,6 +1035,54 @@ if analyze_button:
                         ),
                         row=1, col=1
                     )
+
+                # Earnings Markers
+                try:
+                    # Fetch earnings dates
+                    stock_ticker = yf.Ticker(ticker)
+                    earnings = stock_ticker.earnings_dates
+                    
+                    if earnings is not None and not earnings.empty:
+                        # Prepare dates for comparison (remove timezone and time component)
+                        earnings_dates = earnings.index
+                        if earnings_dates.tz is not None:
+                            earnings_dates = earnings_dates.tz_localize(None)
+                        earnings_dates = earnings_dates.normalize()
+                        
+                        chart_dates = data.index
+                        if chart_dates.tz is not None:
+                            chart_dates = chart_dates.tz_localize(None)
+                        chart_dates = chart_dates.normalize()
+                        
+                        # Find dates that exist in our chart data
+                        common_dates = earnings_dates.intersection(chart_dates)
+                        
+                        if not common_dates.empty:
+                            # Create a mask for the original data
+                            chart_dates_series = pd.Series(chart_dates, index=data.index)
+                            mask = chart_dates_series.isin(common_dates)
+                            earnings_points = data[mask]
+                            
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=earnings_points.index,
+                                    y=earnings_points['Low'] * 0.95, # Slightly below the candle
+                                    mode='text',
+                                    text='E',
+                                    textposition='bottom center',
+                                    textfont=dict(
+                                        color='#FFD700', # Gold color
+                                        size=14,
+                                        family='Arial Black'
+                                    ),
+                                    name='Earnings',
+                                    hoverinfo='x+text',
+                                    hovertext='Earnings Report'
+                                ),
+                                row=1, col=1
+                            )
+                except Exception as e:
+                    pass # Fail silently if earnings data unavailable
                 
                 # Volume
                 colors_vol = ['green' if c > o else 'red' for c, o in zip(data['Close'], data['Open'])]
@@ -903,6 +1090,12 @@ if analyze_button:
                     go.Bar(x=data.index, y=data['Volume'], name='Volume', marker_color=colors_vol, opacity=0.7),
                     row=2, col=1
                 )
+                
+                if show_vol_ma:
+                    fig.add_trace(
+                        go.Scatter(x=data.index, y=data['Vol_MA'], name='Vol MA (20)', line=dict(color='#FFA500', width=1.5)),
+                        row=2, col=1
+                    )
                 
                 # MACD
                 fig.add_trace(
