@@ -9,7 +9,7 @@
 │                                                                   │
 │  ┌─────────────────────────┐    ┌──────────────────────────┐   │
 │  │   Streamlit Web App     │    │  Command Line Interface  │   │
-│  │   (analysis_app.py)     │    │  (full_analysis.py)      │   │
+│  │   (main.py)             │    │  (full_analysis.py)      │   │
 │  │                         │    │                          │   │
 │  │  • Beautiful UI         │    │  • Direct execution      │   │
 │  │  • Interactive charts   │    │  • Script integration    │   │
@@ -54,14 +54,17 @@
    ↓
    • RSI (14-period)
    • MACD (12,26,9)
-   • EMAs (9, 20, 50, 200)
+   • EMAs (9, 20, 50, 100, 200)
    • Bollinger Bands (20, 2σ)
-   • ATR (14-period)
-   • Stochastic (%K, %D)
+   • Volume MA (20-period)
+   • VWAP
+   • Heikin-Ashi Candles
+   • SARIMA Forecast
    ↓
 
-4. SUPPORT/RESISTANCE CALCULATION
+4. EVENT & LEVEL CALCULATION
    ↓
+   • Earnings Dates (Markers)
    • Pivot points
    • Resistance levels (R1, R2, R3)
    • Support levels (S1, S2, S3)
@@ -126,7 +129,7 @@ d:\sa -AI\
 │       │   └── _prepare_data_summary()
 │       └── analyze_stock(ticker, period) → Full Report
 │
-├── 🌐 analysis_app.py ⭐ WEB INTERFACE
+├── 🌐 main.py ⭐ WEB INTERFACE
 │   ├── Streamlit UI configuration
 │   ├── Custom CSS styling
 │   ├── Sidebar (API key, ticker input)
@@ -149,7 +152,11 @@ d:\sa -AI\
 │   ├── yfinance (Stock data)
 │   ├── numpy (Math operations)
 │   ├── google-generativeai (AI analysis)
-│   └── python-dotenv (Environment variables)
+│   ├── python-dotenv (Environment variables)
+│   ├── curl-cffi (Advanced data fetching)
+│   ├── statsmodels (SARIMA forecasting)
+│   ├── python-docx (Word export)
+│   └── fpdf (PDF export)
 │
 ├── 📚 Documentation Files:
 │   ├── AI_ANALYSIS_README.md → Complete documentation
@@ -212,27 +219,31 @@ report = analyzer.analyze_stock("AAPL", "1y")
 │ • API Key │  └──────┴──────┴──────┴──────┴──────┘      │
 │ • Ticker  │                                             │
 │ • Period  │  Full Equity Research Report:               │
-│ • Button  │  ┌─────────────────────────────────────┐   │
-│           │  │ I. RECOMMENDATION                   │   │
-│ Info Box  │  │ II. INVESTMENT THESIS               │   │
-│           │  │ III. TECHNICAL ANALYSIS             │   │
+│ • Mode    │  ┌─────────────────────────────────────┐   │
+│ • Toggles │  │ I. RECOMMENDATION                   │   │
+│           │  │ II. INVESTMENT THESIS               │   │
+│ Info Box  │  │ III. TECHNICAL ANALYSIS             │   │
 │           │  │ IV. FUNDAMENTAL ASSESSMENT          │   │
 │           │  │ V. RISK FACTORS                     │   │
 │           │  │ VI. PRICE TARGET                    │   │
 │           │  │ VII. ZMTECH ANALYSIS - KEY LEVELS   │   │
 │           │  └─────────────────────────────────────┘   │
-│           │  [Download Button]                          │
+│           │  [Download: Text | Word | PDF]              │
 │           │                                             │
 │           │  Technical Charts:                          │
 │           │  ┌─────────────────────────────────────┐   │
 │           │  │ Price + EMAs + Bollinger Bands      │   │
+│           │  │ + Earnings Markers ("E")            │   │
+│           │  │ + Support/Resistance Lines          │   │
 │           │  ├─────────────────────────────────────┤   │
-│           │  │ Volume Bars                         │   │
+│           │  │ Volume Bars + Volume MA             │   │
+│           │  ├─────────────────────────────────────┤   │
+│           │  │ MACD Indicator                      │   │
 │           │  ├─────────────────────────────────────┤   │
 │           │  │ RSI Indicator                       │   │
 │           │  └─────────────────────────────────────┘   │
 │           │                                             │
-│           │  Support/Resistance Levels:                 │
+│           │  Key Price Levels (Summary):                │
 │           │  ┌─────────────┬─────────────────┐         │
 │           │  │ Resistance  │ Support         │         │
 │           │  │ • R3: $XXX  │ • S1: $XXX      │         │
@@ -272,6 +283,20 @@ BB_Middle = Close.rolling(20).mean()
 BB_Std = Close.rolling(20).std()
 BB_Upper = BB_Middle + (2 * BB_Std)
 BB_Lower = BB_Middle - (2 * BB_Std)
+
+# Volume Moving Average
+Vol_MA = Volume.rolling(20).mean()
+
+# VWAP (Volume Weighted Average Price)
+Typical_Price = (High + Low + Close) / 3
+Volume_Price = Typical_Price * Volume
+VWAP = Volume_Price.cumsum() / Volume.cumsum()
+
+# Heikin-Ashi
+HA_Close = (Open + High + Low + Close) / 4
+HA_Open = (Previous_HA_Open + Previous_HA_Close) / 2
+HA_High = max(High, HA_Open, HA_Close)
+HA_Low = min(Low, HA_Open, HA_Close)
 
 # ATR
 High_Low = High - Low
@@ -509,7 +534,7 @@ test_basic_analysis()
 ### Local Deployment (Current)
 
 ```bash
-streamlit run analysis_app.py
+streamlit run main.py
 # Runs on localhost:8501
 ```
 
@@ -530,14 +555,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
-CMD ["streamlit", "run", "analysis_app.py"]
+CMD ["streamlit", "run", "main.py"]
 ```
 
 ### Heroku Deployment
 
 ```bash
 # Procfile
-web: streamlit run --server.port=$PORT analysis_app.py
+web: streamlit run --server.port=$PORT main.py
 
 # Deploy
 git push heroku main
