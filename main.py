@@ -370,11 +370,18 @@ def create_word_report(report_text, ticker):
     font.size = Pt(11)
     
     # Title
-    title = doc.add_heading(f'Equity Research Report: {ticker}', 0)
+    title = doc.add_heading('ZMtech Equity Research', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
+    # Subtitle
+    subtitle = doc.add_paragraph(f'{ticker} — Equity Research Note')
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for run in subtitle.runs:
+        run.font.size = Pt(16)
+        run.bold = True
+    
     # Date
-    date_para = doc.add_paragraph(f'Generated on: {datetime.now().strftime("%B %d, %Y")}')
+    date_para = doc.add_paragraph(f'Generated: {datetime.now().strftime("%B %d, %Y")}')
     date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     doc.add_paragraph('-------------------------------------------------------------------')
@@ -388,9 +395,8 @@ def create_word_report(report_text, ticker):
             
         # Check for headers
         if line.startswith('# '):
-            # Main Title (already handled mostly by the top title, but if AI outputs it...)
-            p = doc.add_heading(line.replace('# ', ''), level=1)
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # Skip duplicated main title (handled manually above)
+            continue
         elif line.startswith('## '):
             # Section Headers
             p = doc.add_heading(line.replace('## ', ''), level=2)
@@ -477,10 +483,17 @@ def create_pdf_report(report_text, ticker):
     pdf.add_page()
     
     # Title
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, f"Equity Research Report: {ticker}", 0, 1, "C")
+    # Title
+    pdf.set_font("Arial", "B", 18)
+    pdf.cell(0, 10, "ZMtech Equity Research", 0, 1, "C")
+    
+    pdf.set_font("Arial", "B", 14)
+    # Encode strings to latin-1 to avoid unicode errors in standard FPDF
+    title_str = f"{ticker} — Equity Research Note".encode('latin-1', 'replace').decode('latin-1')
+    pdf.cell(0, 10, title_str, 0, 1, "C")
+    
     pdf.set_font("Arial", "I", 10)
-    pdf.cell(0, 10, f"Generated on: {datetime.now().strftime('%B %d, %Y')}", 0, 1, "C")
+    pdf.cell(0, 10, f"Generated: {datetime.now().strftime('%B %d, %Y')}", 0, 1, "C")
     pdf.ln(5)
     
     # Content
@@ -494,12 +507,10 @@ def create_pdf_report(report_text, ticker):
             continue
             
         # Handle Headers
+        # Handle Headers
         if line.startswith('# '):
-            # Main Title
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, line.replace('# ', '').encode('latin-1', 'replace').decode('latin-1'), 0, 1, 'C')
-            pdf.set_font("Arial", size=10)
+            # Skip duplicated main title (handled manually above)
+            continue
         elif line.startswith('## '):
             # Section Headers
             pdf.ln(5)

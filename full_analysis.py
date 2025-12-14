@@ -320,116 +320,126 @@ class FullStockAnalyzer:
         
         # Create the prompt for the AI
         prompt = f"""
-You are a senior equity research analyst at Goldman Sachs. Generate a professional equity research report using crisp financial language and proper structure.
+You are a Senior Sell-Side Equity Research Analyst at a top-tier investment bank (ZMtech Equity Research).
+Using the raw analysis provided below, convert it into a PROFESSIONAL, INSTITUTIONAL-QUALITY EQUITY RESEARCH NOTE suitable for hedge funds, asset managers, and CIO review.
+
+STRICT FORMATTING & STYLE REQUIREMENTS:
+- Use formal sell-side tone (concise, analytical, neutral, authoritative).
+- Clear section numbering and hierarchy.
+- Short, precise paragraphs (no long blocks of text).
+- Bullet points for arguments, risks, and strategies.
+- Consistent financial terminology.
+- No emojis. No casual language. No repetition.
+- Preserve all data points and figures unless logically inconsistent.
 
 STOCK DATA:
 {data_summary}
 
 FORMAT THE REPORT EXACTLY AS FOLLOWS:
 
-# EQUITY RESEARCH NOTE: {stock_data['ticker']}
+# ZMtech Equity Research
+# Equity Research Note: {stock_data['ticker']}
 
-**Date:** {datetime.now().strftime('%B %d, %Y')}  
-**Current Price:** ${stock_data['current_price']:.2f}  
-**Rating:** [BUY / HOLD / SELL]  
-**Conviction:** [High / Medium / Low]
+**Date:** {datetime.now().strftime('%B %d, %Y')}
+**Current Price:** ${stock_data['current_price']:.2f}
+**Rating:** [BUY / HOLD / SELL]
+**Conviction:** [Low / Medium / High]
 
 ---
 
 ## 1. EXECUTIVE SUMMARY & RECOMMENDATION
-
-[Provide 3-4 sentences summarizing the overall trend, valuation, and momentum. End with a clear rating (Buy/Hold/Sell) and conviction level.]
-
----
+[1–2 concise paragraphs. State market context, key technical/fundamental tension. Clear investment recommendation and conviction.]
 
 ## 2. INVESTMENT THESIS
-
 **Bull Case:**
-*   [Bullish driver 1 - be specific and data-driven]
-*   [Bullish driver 2]
-*   [Bullish driver 3]
-*   [Bullish driver 4 if applicable]
+*   [Factor 1: Growth/Valuation/Catalyst]
+*   [Factor 2]
+*   [Factor 3]
 
 **Bear Case:**
-*   [Key risk 1 - be specific]
-*   [Key risk 2]
-*   [Key risk 3]
-*   [Key risk 4 if applicable]
+*   [Risk 1: Technical/Macro/Valuation]
+*   [Risk 2]
+*   [Risk 3]
 
-**Conclusion:** [2-3 sentences on the balanced risk/reward profile at current levels]
-
----
+**Conclusion:**
+[Explicit risk/reward assessment and directional bias.]
 
 ## 3. TECHNICAL ANALYSIS
-
-**Trend Direction:** [Bullish/Bearish/Neutral - explain why]  
-**Momentum:** RSI at [value] ([Overbought/Oversold/Neutral]), MACD [bullish/bearish crossover status]
-
-**Key Technical Observations:**
-*   **Algorithmic Buy/Sell Signals:** [Analyze the 'ALGORITHMIC SIGNALS' section. Is there a recent Buy or Sell signal? Does it confirm the trend?]
-*   **EMAs:** [Comment on 20/50/200 EMA alignment and what it signals]
-*   **Bollinger Bands:** [Position relative to bands and volatility implications]
-*   **Stochastic:** [Overbought/oversold conditions and divergences]
-*   **Volume:** [Analysis of volume trends and confirmation]
-*   **Forward PEG & Valuation Confluence:** [Analyze the Forward PEG ratio ({self._format_value(stock_data['fundamentals']['forward_peg'])}) in the context of technical momentum. Does the valuation support the technical trend?]
-
----
+*   **Trend:** Short-term [{stock_data['trend_analysis']['short_term']}], Medium-term [{stock_data['trend_analysis']['medium_term']}], Long-term [{stock_data['trend_analysis']['long_term']}].
+*   **Momentum:** RSI ({stock_data['technical_indicators']['rsi']:.1f}), MACD ({stock_data['technical_indicators']['macd']:.3f}). [Interpretation]
+*   **Volume:** [Analysis of volume relative to average]
+*   **Moving Averages:** [Comment on price vs EMA20/50/200]
+*   **Volatility:** ATR ({stock_data['technical_indicators']['atr']:.2f}). [Comment on Bollinger Bands width/squeeze]
 
 ## 4. FUNDAMENTAL ASSESSMENT
+*   **Valuation:** P/E ({self._format_value(stock_data['fundamentals']['pe_ratio'])}), Forward P/E ({self._format_value(stock_data['fundamentals']['forward_pe'])}), PEG ({self._format_value(stock_data['fundamentals']['peg_ratio'])}). [Interpretation: Undervalued/Fair/Overvalued]
+*   **Growth:** Revenue Growth ({self._format_value(stock_data['fundamentals']['revenue_growth'], is_percentage=True)}), Earnings Growth ({self._format_value(stock_data['fundamentals']['earnings_growth'], is_percentage=True)}). [Outlook]
+*   **Financial Health:** [Margins, Debt/Equity, Current Ratio analysis]
 
-**Valuation:**
-*   P/E Ratio: [value] ([vs. sector average/historical range])
-*   Forward P/E: [value if available]
-*   P/B Ratio: [value]
-*   Assessment: [Undervalued/Fairly valued/Overvalued - explain why]
+## 5. KEY PRICE LEVELS
+*   **Resistance:** R3 (${stock_data['support_resistance']['resistance_3']:.2f}), R2 (${stock_data['support_resistance']['resistance_2']:.2f}), R1 (${stock_data['support_resistance']['resistance_1']:.2f})
+*   **Pivot Point:** ${stock_data['support_resistance']['pivot']:.2f}
+*   **Support:** S1 (${stock_data['support_resistance']['support_1']:.2f}), S2 (${stock_data['support_resistance']['support_2']:.2f}), S3 (${stock_data['support_resistance']['support_3']:.2f})
 
-**Growth:**
-*   Revenue Trend: [YoY growth rate and trajectory]
-*   EPS Trend: [Growth rate and quality of earnings]
-*   Outlook: [Positive/Negative momentum with reasoning]
+## 6. TRADING STRATEGY (EQUITY)
+*   **Entry Zone:** $[Price Range]
+*   **Stop Loss:** $[Price]
+*   **Target Price:** $[Price] ([Time Horizon])
+*   **Risk/Reward:** [Ratio calculation]
 
-**Health:**
-*   Margins: [Gross/Operating/Net margin analysis]
-*   Debt/Equity: [Leverage assessment]
-*   Liquidity: [Current ratio, cash position, financial flexibility]
+## 7. OPTIONS STRATEGIES
+Provide detailed specific analysis for the following:
+
+**A. Long Call (Bullish)**
+*   **Setup:** [Buy Call at Strike X, Expiration]
+*   **Objective:** [Profit from rising price]
+*   **Risk:** [Premium paid]
+*   **Best Timing:** [Strong bullish trend/Breakout]
+
+**B. Long Put (Bearish)**
+*   **Setup:** [Buy Put at Strike X, Expiration]
+*   **Objective:** [Profit from falling price]
+*   **Risk:** [Premium paid]
+*   **Best Timing:** [Breakdown/Bearish trend]
+
+**C. Bull Call Spread (Directional)**
+*   **Setup:** [Buy Call Strike X + Sell Call Strike Y]
+*   **Objective:** [Capped upside with reduced cost]
+*   **Risk:** [Net debit]
+*   **Best Timing:** [Moderate bullishness]
+
+**D. Cash-Secured Put (Income/Acquisition)**
+*   **Setup:** [Sell Put at Strike X]
+*   **Objective:** [Income or acquire at discount]
+*   **Risk:** [Assignment at strike]
+*   **Best Timing:** [Neutral/Slightly Bullish/Support level]
+
+**E. Protective Put (Hedging)**
+*   **Setup:** [Buy Put at Strike X]
+*   **Objective:** [Downside protection for shares]
+*   **Risk:** [Premium cost]
+*   **Best Timing:** [Earnings/High volatility event]
+
+**F. Volatility Strategy (Straddle/Iron Condor)**
+*   **Strategy:** [Choose Straddle/Strangle for High Volatility expectation OR Iron Condor for Low Volatility]
+*   **Setup:** [Specific strikes]
+*   **Objective:** [Volatility expansion OR contraction]
+*   **Risk:** [Defined risk parameters]
+*   **Best Timing:** [Earnings (Straddle) OR Consolidation (Condor)]
+
+## 8. STRATEGY RECOMMENDATION
+*   **Preferred Strategy:** [Name of the ONE best strategy from above]
+*   **Rationale:**
+    *   **Trend:** [Alignment]
+    *   **Volatility:** [IV considerations]
+    *   **Capital:** [Efficiency]
+    *   **Risk:** [Control]
+    *   **Time:** [Horizon]
+*   **Tactical Notes:** [IV Percentile context, Earnings date consideration, Position sizing]
 
 ---
-
-## 5. KEY PRICE LEVELS (ZMtech Analysis)
-
-**Resistance Levels:**
-*   **R3:** ${stock_data['support_resistance']['resistance_3']:.2f} (Strong resistance)
-*   **R2:** ${stock_data['support_resistance']['resistance_2']:.2f}
-*   **R1:** ${stock_data['support_resistance']['resistance_1']:.2f} (Immediate resistance)
-
-**Pivot Point:** ${stock_data['support_resistance']['pivot']:.2f}
-
-**Support Levels:**
-*   **S1:** ${stock_data['support_resistance']['support_1']:.2f} (Immediate support)
-*   **S2:** ${stock_data['support_resistance']['support_2']:.2f}
-*   **S3:** ${stock_data['support_resistance']['support_3']:.2f} (Strong support)
-
----
-
-## 6. TRADING STRATEGY
-
-*   **Entry Zone:** $[specific price range based on analysis]
-*   **Stop Loss:** $[specific price - explain placement]
-*   **Target Price:** $[specific price] ([timeframe: e.g., 3-6 months])
-*   **Risk/Reward Ratio:** [calculate and state]
-
----
-
-**Disclaimer:** This report is generated by AI for informational purposes only and does not constitute financial advice. Please consult a licensed financial advisor before making investment decisions.
-
----
-
-INSTRUCTIONS:
-- Use professional financial terminology (e.g., "technical consolidation," "valuation compression," "momentum divergence")
-- Be specific with numbers from the provided data
-- Keep language crisp and analytical
-- Justify all recommendations with concrete evidence
-- Maintain objectivity and balance
+**DISCLAIMER:**
+This report is generated by AI for informational purposes only and does not constitute financial advice. Please consult a licensed financial advisor before making investment decisions.
 """
         
         retries = 3
