@@ -9,7 +9,7 @@
 │                                                                   │
 │  ┌─────────────────────────┐    ┌──────────────────────────┐   │
 │  │   Streamlit Web App     │    │  Command Line Interface  │   │
-│  │   (main.py)             │    │  (full_analysis.py)      │   │
+│  │   (analysis_app.py)     │    │  (full_analysis.py)      │   │
 │  │                         │    │                          │   │
 │  │  • Beautiful UI         │    │  • Direct execution      │   │
 │  │  • Interactive charts   │    │  • Script integration    │   │
@@ -54,17 +54,14 @@
    ↓
    • RSI (14-period)
    • MACD (12,26,9)
-   • EMAs (9, 20, 50, 100, 200)
+   • EMAs (9, 20, 50, 200)
    • Bollinger Bands (20, 2σ)
-   • Volume MA (20-period)
-   • VWAP
-   • Heikin-Ashi Candles
-   • SARIMA Forecast
+   • ATR (14-period)
+   • Stochastic (%K, %D)
    ↓
 
-4. EVENT & LEVEL CALCULATION
+4. SUPPORT/RESISTANCE CALCULATION
    ↓
-   • Earnings Dates (Markers)
    • Pivot points
    • Resistance levels (R1, R2, R3)
    • Support levels (S1, S2, S3)
@@ -129,7 +126,7 @@ d:\sa -AI\
 │       │   └── _prepare_data_summary()
 │       └── analyze_stock(ticker, period) → Full Report
 │
-├── 🌐 main.py ⭐ WEB INTERFACE
+├── 🌐 analysis_app.py ⭐ WEB INTERFACE
 │   ├── Streamlit UI configuration
 │   ├── Custom CSS styling
 │   ├── Sidebar (API key, ticker input)
@@ -152,11 +149,7 @@ d:\sa -AI\
 │   ├── yfinance (Stock data)
 │   ├── numpy (Math operations)
 │   ├── google-generativeai (AI analysis)
-│   ├── python-dotenv (Environment variables)
-│   ├── curl-cffi (Advanced data fetching)
-│   ├── statsmodels (SARIMA forecasting)
-│   ├── python-docx (Word export)
-│   └── fpdf (PDF export)
+│   └── python-dotenv (Environment variables)
 │
 ├── 📚 Documentation Files:
 │   ├── AI_ANALYSIS_README.md → Complete documentation
@@ -219,31 +212,27 @@ report = analyzer.analyze_stock("AAPL", "1y")
 │ • API Key │  └──────┴──────┴──────┴──────┴──────┘      │
 │ • Ticker  │                                             │
 │ • Period  │  Full Equity Research Report:               │
-│ • Mode    │  ┌─────────────────────────────────────┐   │
-│ • Toggles │  │ I. RECOMMENDATION                   │   │
-│           │  │ II. INVESTMENT THESIS               │   │
-│ Info Box  │  │ III. TECHNICAL ANALYSIS             │   │
+│ • Button  │  ┌─────────────────────────────────────┐   │
+│           │  │ I. RECOMMENDATION                   │   │
+│ Info Box  │  │ II. INVESTMENT THESIS               │   │
+│           │  │ III. TECHNICAL ANALYSIS             │   │
 │           │  │ IV. FUNDAMENTAL ASSESSMENT          │   │
 │           │  │ V. RISK FACTORS                     │   │
 │           │  │ VI. PRICE TARGET                    │   │
 │           │  │ VII. ZMTECH ANALYSIS - KEY LEVELS   │   │
 │           │  └─────────────────────────────────────┘   │
-│           │  [Download: Text | Word | PDF]              │
+│           │  [Download Button]                          │
 │           │                                             │
 │           │  Technical Charts:                          │
 │           │  ┌─────────────────────────────────────┐   │
 │           │  │ Price + EMAs + Bollinger Bands      │   │
-│           │  │ + Earnings Markers ("E")            │   │
-│           │  │ + Support/Resistance Lines          │   │
 │           │  ├─────────────────────────────────────┤   │
-│           │  │ Volume Bars + Volume MA             │   │
-│           │  ├─────────────────────────────────────┤   │
-│           │  │ MACD Indicator                      │   │
+│           │  │ Volume Bars                         │   │
 │           │  ├─────────────────────────────────────┤   │
 │           │  │ RSI Indicator                       │   │
 │           │  └─────────────────────────────────────┘   │
 │           │                                             │
-│           │  Key Price Levels (Summary):                │
+│           │  Support/Resistance Levels:                 │
 │           │  ┌─────────────┬─────────────────┐         │
 │           │  │ Resistance  │ Support         │         │
 │           │  │ • R3: $XXX  │ • S1: $XXX      │         │
@@ -283,20 +272,6 @@ BB_Middle = Close.rolling(20).mean()
 BB_Std = Close.rolling(20).std()
 BB_Upper = BB_Middle + (2 * BB_Std)
 BB_Lower = BB_Middle - (2 * BB_Std)
-
-# Volume Moving Average
-Vol_MA = Volume.rolling(20).mean()
-
-# VWAP (Volume Weighted Average Price)
-Typical_Price = (High + Low + Close) / 3
-Volume_Price = Typical_Price * Volume
-VWAP = Volume_Price.cumsum() / Volume.cumsum()
-
-# Heikin-Ashi
-HA_Close = (Open + High + Low + Close) / 4
-HA_Open = (Previous_HA_Open + Previous_HA_Close) / 2
-HA_High = max(High, HA_Open, HA_Close)
-HA_Low = min(Low, HA_Open, HA_Close)
 
 # ATR
 High_Low = High - Low
@@ -364,182 +339,29 @@ response = genai.model.generate_content(PROMPT)
 return response.text
 ```
 
-## 🔐 Security & Configuration
+## 🔐 Configuration & Security
 
 ### API Key Management
+The system uses a fallback strategy to locate the `GOOGLE_API_KEY`:
+1.  **Streamlit Secrets**: `.streamlit/secrets.toml` (Primary for Cloud/Local).
+2.  **Environment Variables**: `.env` file or System Env.
+3.  **UI Input**: User can manually enter key in the sidebar.
 
-```
-Priority order:
-1. Direct parameter: FullStockAnalyzer(api_key="...")
-2. Environment variable: GOOGLE_API_KEY
-3. .env file: GOOGLE_API_KEY=...
-4. Streamlit secrets: .streamlit/secrets.toml
-5. User input in UI sidebar
-```
+### Caching
+*   **Web App**: Uses `@st.cache_data` and `@st.cache_resource` to minimize API calls to Yahoo Finance and store session objects.
+*   **Desktop Apps**: Implements local dictionary-based caching for stock data queries.
 
-### Data Privacy
+## 🚀 Deployment
 
-- No data stored permanently
-- API calls made directly to services
-- Reports saved only if user chooses
-- No telemetry or tracking
-
-## 📊 Data Schema
-
-### Stock Data Dictionary Structure
-
-```python
-stock_data = {
-    'ticker': str,                    # e.g., "AAPL"
-    'current_price': float,          # e.g., 175.50
-    'price_change': float,           # e.g., 2.35 (%)
-
-    'historical_data': DataFrame,    # OHLCV + indicators
-
-    'fundamentals': {
-        'market_cap': int,
-        'pe_ratio': float,
-        'forward_pe': float,
-        'peg_ratio': float,
-        'price_to_book': float,
-        'dividend_yield': float,
-        'beta': float,
-        'earnings_growth': float,
-        'revenue_growth': float,
-        'profit_margin': float,
-        'debt_to_equity': float,
-        'current_ratio': float,
-        '52w_high': float,
-        '52w_low': float,
-        'sector': str,
-        'industry': str
-    },
-
-    'technical_indicators': {
-        'rsi': float,
-        'macd': float,
-        'macd_signal': float,
-        'macd_histogram': float,
-        'ema9': float,
-        'ema20': float,
-        'ema50': float,
-        'ema200': float,
-        'bb_upper': float,
-        'bb_middle': float,
-        'bb_lower': float,
-        'atr': float,
-        'stoch_k': float,
-        'stoch_d': float
-    },
-
-    'support_resistance': {
-        'resistance_3': float,
-        'resistance_2': float,
-        'resistance_1': float,
-        'pivot': float,
-        'support_1': float,
-        'support_2': float,
-        'support_3': float,
-        '52w_high': float,
-        '52w_low': float
-    },
-
-    'volume_analysis': {
-        'current_volume': int,
-        'avg_volume_20d': int,
-        'volume_ratio': float,
-        'volume_trend': str  # "High" | "Normal" | "Low"
-    },
-
-    'trend_analysis': {
-        'short_term': str,    # "Bullish" | "Bearish"
-        'medium_term': str,   # "Bullish" | "Bearish"
-        'long_term': str,     # "Bullish" | "Bearish"
-        'overall': str        # "Strong Bullish" | "Bullish" | "Bearish" | "Strong Bearish"
-    }
-}
-```
-
-## ⚡ Performance Optimization
-
-### Caching Strategy
-
-```python
-# Streamlit caching for data fetches
-@st.cache_data(ttl=300)  # 5-minute cache
-def fetch_stock_data(ticker, period):
-    # Expensive Yahoo Finance call
-    return data
-
-# Avoid re-computing indicators
-# Store in DataFrame, calculate once
-```
-
-### Async Considerations
-
-```python
-# Currently synchronous pipeline:
-# User → Fetch → Calculate → AI → Display
-
-# Future async optimization:
-# User → [Fetch + Calculate in parallel] → AI → Display
-```
-
-## 🧪 Testing Strategy
-
-### Manual Testing Checklist
-
-```
-□ Web app launches without errors
-□ API key validation works
-□ Stock data fetch succeeds
-□ Technical indicators calculate correctly
-□ AI report generates successfully
-□ Charts render properly
-□ Download functionality works
-□ Multiple stocks tested
-□ Edge cases handled (invalid ticker, etc.)
-```
-
-### Example Test Script
-
-```python
-# test_analysis.py
-from full_analysis import FullStockAnalyzer
-
-def test_basic_analysis():
-    analyzer = FullStockAnalyzer()
-
-    # Test data fetch
-    data = analyzer.fetch_stock_data("AAPL", "1mo")
-    assert data['ticker'] == "AAPL"
-    assert 'current_price' in data
-
-    # Test indicators
-    assert 'rsi' in data['technical_indicators']
-    assert 0 <= data['technical_indicators']['rsi'] <= 100
-
-    # Test AI report
-    report = analyzer.analyze_stock("AAPL", "1mo")
-    assert "RECOMMENDATION" in report
-    assert "ZMTECH ANALYSIS" in report
-
-    print("✅ All tests passed!")
-
-test_basic_analysis()
-```
-
-## 🚀 Deployment Options
-
-### Local Deployment (Current)
-
+### Web Application
+Run locally:
 ```bash
-streamlit run main.py
+streamlit run analysis_app.py
 # Runs on localhost:8501
 ```
 
-### Streamlit Cloud Deployment
-
+### Desktop Tools
+Run as standard Python scripts:
 ```bash
 1. Push code to GitHub
 2. Connect Streamlit Cloud to repo
@@ -555,83 +377,27 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
-CMD ["streamlit", "run", "main.py"]
+CMD ["streamlit", "run", "analysis_app.py"]
 ```
 
 ### Heroku Deployment
 
 ```bash
 # Procfile
-web: streamlit run --server.port=$PORT main.py
+web: streamlit run --server.port=$PORT analysis_app.py
 
 # Deploy
 git push heroku main
 ```
 
-## 📈 Scalability Considerations
+## 🔄 Data Flow (Web App)
 
-### Current Limits
+1.  **User Input**: Ticker, Date Range, Analysis Mode.
+2.  **Data Acquisition**: `yfinance` fetches OHLCV and fundamental data.
+3.  **Processing**: `pandas` calculates technical indicators.
+4.  **AI Analysis**: Aggregated data sent to Google Gemini Pro via `google-generativeai`.
+5.  **Visualization**: Streamlit renders metrics and Plotly charts.
+6.  **Reporting**: AI text formatted into Downloadable Word/PDF documents.
 
-- Single-user desktop application
-- Synchronous processing
-- No database (stateless)
-- API rate limits (Google AI free tier)
-
-### Future Scaling
-
-```
-1. Add database (PostgreSQL/MongoDB)
-   → Store historical analyses
-   → Cache expensive calculations
-
-2. Implement queue system (Celery/Redis)
-   → Handle multiple concurrent requests
-   → Background job processing
-
-3. Add caching layer (Redis)
-   → Cache stock data (5-15 min TTL)
-   → Cache AI responses (1 hour TTL)
-
-4. Load balancing
-   → Multiple Streamlit instances
-   → Round-robin distribution
-
-5. Upgrade to paid API tiers
-   → Higher rate limits
-   → Better performance
-```
-
-## 🎯 Success Criteria
-
-The system successfully:
-
-1. ✅ Fetches real-time Yahoo Finance data
-2. ✅ Calculates 15+ technical indicators accurately
-3. ✅ Extracts comprehensive fundamental metrics
-4. ✅ Computes support/resistance levels
-5. ✅ Integrates Google Generative AI seamlessly
-6. ✅ Generates professional research reports
-7. ✅ Provides clear Buy/Hold/Sell recommendations
-8. ✅ Includes "ZMtech Analysis" section
-9. ✅ Offers beautiful Streamlit interface
-10. ✅ Enables report downloads
-11. ✅ Handles errors gracefully
-12. ✅ Performs consistently across stocks
-
-## 📝 Conclusion
-
-This architecture provides:
-
-- **Modularity**: Each component has clear responsibilities
-- **Extensibility**: Easy to add new features
-- **Reliability**: Robust error handling
-- **Performance**: Optimized for desktop use
-- **User Experience**: Professional UI/UX
-- **Maintainability**: Well-documented code
-
-**The system is production-ready for personal/educational use!**
-
----
-
-**ZMtech AI Stock Analysis Platform**
-_Professional equity research at your fingertips_ 📊
+## 🚧 Known Issues / Notes
+*   **Desktop Tools**: `earnings_sector_compare.py` and `earnings.py` currently contain git merge conflict markers (`<<<<<<< HEAD`) which may affect execution. Ensure these are resolved before running.

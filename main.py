@@ -802,7 +802,7 @@ with st.sidebar:
         
         chart_type = st.selectbox(
             "Chart Type",
-            ["Regular Candlestick", "Heikin-Ashi"]
+            ["Regular Candlestick", "Heikin-Ashi", "Line Chart"]
         )
         
         show_forecast = st.checkbox("Show SARIMA Forecast")
@@ -932,22 +932,35 @@ if analyze_button:
                     subplot_titles=('Price & Indicators', 'Volume', 'MACD', 'RSI')
                 )
                 
-                # Candlestick
-                if chart_type == "Regular Candlestick":
+                # Candlestick / Line Chart
+                if chart_type == "Line Chart":
+                     fig.add_trace(
+                        go.Scatter(
+                            x=data.index, y=data['Close'], 
+                            mode='lines', name='Price',
+                            line=dict(color='#00ff00', width=2),
+                            fill='tozeroy', fillcolor='rgba(0, 255, 0, 0.1)'
+                        ),
+                        row=1, col=1
+                    )
+                elif chart_type == "Regular Candlestick":
                     candlestick_data = dict(
                         x=data.index, open=data['Open'], high=data['High'],
                         low=data['Low'], close=data['Close'], name='Price'
+                    )
+                    fig.add_trace(
+                        go.Candlestick(**candlestick_data, increasing_line_color='green', decreasing_line_color='red'),
+                        row=1, col=1
                     )
                 else:
                     candlestick_data = dict(
                         x=data.index, open=data['HA_Open'], high=data['HA_High'],
                         low=data['HA_Low'], close=data['HA_Close'], name='Heikin-Ashi'
                     )
-                
-                fig.add_trace(
-                    go.Candlestick(**candlestick_data, increasing_line_color='green', decreasing_line_color='red'),
-                    row=1, col=1
-                )
+                    fig.add_trace(
+                        go.Candlestick(**candlestick_data, increasing_line_color='green', decreasing_line_color='red'),
+                        row=1, col=1
+                    )
                 
                 # EMAs
                 ema_colors = {'EMA9': '#ffeb3b', 'EMA20': '#00bcd4', 'EMA50': '#ff9800', 
