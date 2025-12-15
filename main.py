@@ -775,6 +775,7 @@ with st.sidebar:
     analysis_mode = st.radio(
         "Select Mode",
         ["Technical Analysis", "AI-Powered Research", "Combined Analysis"],
+        index=2,
         help="Choose your analysis approach"
     )
     
