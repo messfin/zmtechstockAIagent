@@ -101,9 +101,21 @@ class FullStockAnalyzer:
             fundamentals = self._extract_fundamentals(info)
             
             # Get recent price action
-            current_price = data['Close'].iloc[-1]
-            prev_close = data['Close'].iloc[-2] if len(data) > 1 else current_price
-            price_change = ((current_price - prev_close) / prev_close) * 100
+            # Try to get real-time price from info first
+            current_price = info.get('currentPrice') or info.get('regularMarketPrice')
+            
+            if not current_price:
+                 current_price = data['Close'].iloc[-1]
+                 
+            prev_close = info.get('previousClose')
+            if not prev_close:
+                 prev_close = data['Close'].iloc[-2] if len(data) > 1 else current_price
+            
+            # Recalculate change with best available data
+            if prev_close and prev_close != 0:
+                price_change = ((current_price - prev_close) / prev_close) * 100
+            else:
+                price_change = 0.0
             
             # Calculate support and resistance levels
             support_resistance = self._calculate_support_resistance(data)
@@ -320,17 +332,22 @@ class FullStockAnalyzer:
         
         # Create the prompt for the AI
         prompt = f"""
-You are a Senior Sell-Side Equity Research Analyst at a top-tier investment bank (ZMtech Equity Research).
-Using the raw analysis provided below, convert it into a PROFESSIONAL, INSTITUTIONAL-QUALITY EQUITY RESEARCH NOTE suitable for hedge funds, asset managers, and CIO review.
+You are a senior document formatter and equity research analyst specializing in institutional-grade financial research.
+Analyze the provided stock data and generate a PROFESSIONAL, INSTITUTIONAL-QUALITY EQUITY RESEARCH NOTE.
 
-STRICT FORMATTING & STYLE REQUIREMENTS:
-- Use formal sell-side tone (concise, analytical, neutral, authoritative).
-- Clear section numbering and hierarchy.
-- Short, precise paragraphs (no long blocks of text).
-- Bullet points for arguments, risks, and strategies.
-- Consistent financial terminology.
-- No emojis. No casual language. No repetition.
-- Preserve all data points and figures unless logically inconsistent.
+STRICT FORMATTING STANDARDS:
+- Use only standard markdown that converts cleanly to Word
+- Tables: Use simple grid format with | and - characters
+- Headers: # for H1, ## for H2, ### for H3 (maximum depth)
+- Emphasis: **bold** for key terms, *italic* for definitions
+- Lists: Use - or * for bullets, 1. 2. 3. for numbered lists
+
+VISUAL INDICATORS COMPLIANCE:
+- Ratings: 🟢 (Positive/Buy) 🟡 (Caution/Hold) 🔴 (Negative/Sell)
+- Stars: ⭐ (Conviction)
+- Arrows: 📈 (Up/Bullish) 📉 (Down/Bearish) ➡️ (Neutral)
+- Markers: ✅ (Good) ⚠️ (Warning) ❌ (Bad)
+- Targets: 🎯 (Price Target) 📍 (Current) 🛑 (Stop Loss)
 
 STOCK DATA:
 {data_summary}
@@ -338,104 +355,91 @@ STOCK DATA:
 FORMAT THE REPORT EXACTLY AS FOLLOWS:
 
 # ZMtech Equity Research
-# Equity Research Note: {stock_data['ticker']}
+# {stock_data['ticker']} — Equity Research Note
+**Generated:** {datetime.now().strftime('%B %d, %Y')}
+**Classification:** Institutional Equity Research
 
-**Date:** {datetime.now().strftime('%B %d, %Y')}
-**Current Price:** ${stock_data['current_price']:.2f}
-**Rating:** [BUY / HOLD / SELL]
-**Conviction:** [Low / Medium / High]
+## INVESTMENT SNAPSHOT
+| Metric | Value | Signal |
+|---|---|---|
+| **Rating** | [BUY/HOLD/SELL] | [🟢/🟡/🔴] |
+| **Current Price** | ${stock_data['current_price']:.2f} | 📍 |
+| **Price Target** | $[Target] | 🎯 |
+| **Risk/Reward** | [Ratio] | ⚖️ |
+| **Time Horizon** | [Months] | ⏰ |
+| **Conviction** | [Low/Med/High] | ⭐⭐⭐ |
 
----
-
-## 1. EXECUTIVE SUMMARY & RECOMMENDATION
-[1–2 concise paragraphs. State market context, key technical/fundamental tension. Clear investment recommendation and conviction.]
+## 1. EXECUTIVE SUMMARY
+[3-4 paragraph maximum. Lead with most critical information. No jargon in first paragraph. Clear recommendation.]
 
 ## 2. INVESTMENT THESIS
-**Bull Case:**
-*   [Factor 1: Growth/Valuation/Catalyst]
-*   [Factor 2]
-*   [Factor 3]
+### Bull Case 🟢
+*   [Point 1]
+*   [Point 2]
+*   [Point 3]
 
-**Bear Case:**
-*   [Risk 1: Technical/Macro/Valuation]
-*   [Risk 2]
-*   [Risk 3]
+### Bear Case 🔴
+*   [Point 1]
+*   [Point 2]
+*   [Point 3]
 
-**Conclusion:**
-[Explicit risk/reward assessment and directional bias.]
+### Conclusion
+[Explicit risk/reward assessment and directional bias]
 
 ## 3. TECHNICAL ANALYSIS
-*   **Trend:** Short-term [{stock_data['trend_analysis']['short_term']}], Medium-term [{stock_data['trend_analysis']['medium_term']}], Long-term [{stock_data['trend_analysis']['long_term']}].
-*   **Momentum:** RSI ({stock_data['technical_indicators']['rsi']:.1f}), MACD ({stock_data['technical_indicators']['macd']:.3f}). [Interpretation]
-*   **Volume:** [Analysis of volume relative to average]
-*   **Moving Averages:** [Comment on price vs EMA20/50/200]
-*   **Volatility:** ATR ({stock_data['technical_indicators']['atr']:.2f}). [Comment on Bollinger Bands width/squeeze]
+| Indicator | Value | Signal | Interpretation |
+|---|---|---|---|
+| **Trend (Short)** | {stock_data['trend_analysis']['short_term']} | [📈/📉/➡️] | [Comment] |
+| **Trend (Med)** | {stock_data['trend_analysis']['medium_term']} | [📈/📉/➡️] | [Comment] |
+| **RSI** | {stock_data['technical_indicators']['rsi']:.1f} | [Color] | [Overbought/Oversold/Neutral] |
+| **MACD** | {stock_data['technical_indicators']['macd']:.3f} | [Color] | [Bullish/Bearish] |
+| **Volume** | [Analysis] | [Signal] | [Comment] |
 
 ## 4. FUNDAMENTAL ASSESSMENT
-*   **Valuation:** P/E ({self._format_value(stock_data['fundamentals']['pe_ratio'])}), Forward P/E ({self._format_value(stock_data['fundamentals']['forward_pe'])}), PEG ({self._format_value(stock_data['fundamentals']['peg_ratio'])}). [Interpretation: Undervalued/Fair/Overvalued]
-*   **Growth:** Revenue Growth ({self._format_value(stock_data['fundamentals']['revenue_growth'], is_percentage=True)}), Earnings Growth ({self._format_value(stock_data['fundamentals']['earnings_growth'], is_percentage=True)}). [Outlook]
-*   **Financial Health:** [Margins, Debt/Equity, Current Ratio analysis]
+| Metric | Value | Grade | Assessment |
+|---|---|---|---|
+| **P/E Ratio** | {self._format_value(stock_data['fundamentals']['pe_ratio'])} | [A-F] | [Undervalued/Overvalued] |
+| **PEG Ratio** | {self._format_value(stock_data['fundamentals']['peg_ratio'])} | [A-F] | [Growth Valuation] |
+| **Rev Growth** | {self._format_value(stock_data['fundamentals']['revenue_growth'], is_percentage=True)} | [A-F] | [Top-line health] |
+| **Profit Margin** | {self._format_value(stock_data['fundamentals']['profit_margin'], is_percentage=True)} | [A-F] | [Efficiency] |
 
 ## 5. KEY PRICE LEVELS
-*   **Resistance:** R3 (${stock_data['support_resistance']['resistance_3']:.2f}), R2 (${stock_data['support_resistance']['resistance_2']:.2f}), R1 (${stock_data['support_resistance']['resistance_1']:.2f})
-*   **Pivot Point:** ${stock_data['support_resistance']['pivot']:.2f}
-*   **Support:** S1 (${stock_data['support_resistance']['support_1']:.2f}), S2 (${stock_data['support_resistance']['support_2']:.2f}), S3 (${stock_data['support_resistance']['support_3']:.2f})
+| Level | Price | Type | Significance |
+|---|---|---|---|
+| **R3** | ${stock_data['support_resistance']['resistance_3']:.2f} | 🔴 Resistance | Strong Overhead |
+| **R2** | ${stock_data['support_resistance']['resistance_2']:.2f} | 🔴 Resistance | Moderate |
+| **R1** | ${stock_data['support_resistance']['resistance_1']:.2f} | 🔴 Resistance | Immediate |
+| **Pivot** | ${stock_data['support_resistance']['pivot']:.2f} | 🟡 Pivot | Balance Point |
+| **S1** | ${stock_data['support_resistance']['support_1']:.2f} | 🟢 Support | Immediate |
+| **S2** | ${stock_data['support_resistance']['support_2']:.2f} | 🟢 Support | Moderate |
+| **S3** | ${stock_data['support_resistance']['support_3']:.2f} | 🟢 Support | Strong Floor |
 
 ## 6. TRADING STRATEGY (EQUITY)
-*   **Entry Zone:** $[Price Range]
-*   **Stop Loss:** $[Price]
-*   **Target Price:** $[Price] ([Time Horizon])
-*   **Risk/Reward:** [Ratio calculation]
+| Action | Price Zone | Note |
+|---|---|---|
+| **Entry Zone** | $[Range] | 📍 Ideal Accumulation |
+| **Target 1** | $[Price] | 🎯 Initial Profit Take |
+| **Target 2** | $[Price] | 🎯 Extended Target |
+| **Stop Loss** | $[Price] | 🛑 Invalidational Level |
 
 ## 7. OPTIONS STRATEGIES
-Provide detailed specific analysis for the following:
+| Strategy | Outlook | Setup | Risk |
+|---|---|---|---|
+| **Long Call** | Bullish 🟢 | Buy Call | Premium |
+| **Long Put** | Bearish 🔴 | Buy Put | Premium |
+| **Bull Spread** | Bullish 🟢 | Long Call + Short Call | Net Debit |
+| **Protective Put** | Hedge 🛡️ | Long Stock + Buy Put | Premium |
 
-**A. Long Call (Bullish)**
-*   **Setup:** [Buy Call at Strike X, Expiration]
-*   **Objective:** [Profit from rising price]
-*   **Risk:** [Premium paid]
-*   **Best Timing:** [Strong bullish trend/Breakout]
+### Strategy Recommendation
+*   **Preferred Strategy:** [Name]
+*   **Rationale:** [Detailed reason]
 
-**B. Long Put (Bearish)**
-*   **Setup:** [Buy Put at Strike X, Expiration]
-*   **Objective:** [Profit from falling price]
-*   **Risk:** [Premium paid]
-*   **Best Timing:** [Breakdown/Bearish trend]
-
-**C. Bull Call Spread (Directional)**
-*   **Setup:** [Buy Call Strike X + Sell Call Strike Y]
-*   **Objective:** [Capped upside with reduced cost]
-*   **Risk:** [Net debit]
-*   **Best Timing:** [Moderate bullishness]
-
-**D. Cash-Secured Put (Income/Acquisition)**
-*   **Setup:** [Sell Put at Strike X]
-*   **Objective:** [Income or acquire at discount]
-*   **Risk:** [Assignment at strike]
-*   **Best Timing:** [Neutral/Slightly Bullish/Support level]
-
-**E. Protective Put (Hedging)**
-*   **Setup:** [Buy Put at Strike X]
-*   **Objective:** [Downside protection for shares]
-*   **Risk:** [Premium cost]
-*   **Best Timing:** [Earnings/High volatility event]
-
-**F. Volatility Strategy (Straddle/Iron Condor)**
-*   **Strategy:** [Choose Straddle/Strangle for High Volatility expectation OR Iron Condor for Low Volatility]
-*   **Setup:** [Specific strikes]
-*   **Objective:** [Volatility expansion OR contraction]
-*   **Risk:** [Defined risk parameters]
-*   **Best Timing:** [Earnings (Straddle) OR Consolidation (Condor)]
-
-## 8. STRATEGY RECOMMENDATION
-*   **Preferred Strategy:** [Name of the ONE best strategy from above]
-*   **Rationale:**
-    *   **Trend:** [Alignment]
-    *   **Volatility:** [IV considerations]
-    *   **Capital:** [Efficiency]
-    *   **Risk:** [Control]
-    *   **Time:** [Horizon]
-*   **Tactical Notes:** [IV Percentile context, Earnings date consideration, Position sizing]
+## 8. RISK FACTORS
+| Risk Category | Severity | Description |
+|---|---|---|
+| **Market** | [High/Med] | [Beta/Correlation] |
+| **Sector** | [High/Med] | [Industry headwinds] |
+| **Company** | [High/Med] | [Specific execution risks] |
 
 ---
 **DISCLAIMER:**
